@@ -20,6 +20,7 @@
           buildInputs = [
             gcc
             rust-bin.beta.latest.default
+            rust-analyzer
           ];
 
           MSG = "Welcome to Dev Environment !!";
