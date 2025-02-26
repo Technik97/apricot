@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::{self, Write};
 
 enum Word {
     BuiltIn(fn(&mut Forth)),
@@ -74,9 +75,31 @@ impl Forth {
         self.dictionary
             .insert(name.to_string(), Word::UserDefined(tokens));
     }
+
+    fn top(&self) -> Option<&i32> {
+        self.stack.last()
+    }
 }
 
 fn main() {
-    let mut stack = Forth::new();
-    stack.push(5);
+    let mut forth = Forth::new();
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+
+        let input = input.trim();
+        if input == "exit" {
+            break;
+        }
+
+        forth.eval(&input);
+
+        if let Some(top) = forth.top() {
+            println! {"{}", top};
+        } else {
+            println!("Stack is empty");
+        }
+    }
 }
