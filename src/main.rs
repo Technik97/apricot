@@ -16,6 +16,11 @@ impl Forth {
         let mut dictionary = HashMap::new();
         dictionary.insert("+".to_string(), Word::BuiltIn(Forth::add));
         dictionary.insert("dup".to_string(), Word::BuiltIn(Forth::dup));
+        dictionary.insert("-".to_string(), Word::BuiltIn(Forth::sub));
+        dictionary.insert("*".to_string(), Word::BuiltIn(Forth::mul));
+        dictionary.insert("/".to_string(), Word::BuiltIn(Forth::div));
+        dictionary.insert("drop".to_string(), Word::BuiltIn(Forth::drop));
+        dictionary.insert("over".to_string(), Word::BuiltIn(Forth::over));
 
         Self {
             stack: Vec::new(),
@@ -26,6 +31,39 @@ impl Forth {
     fn add(&mut self) {
         if let (Some(a), Some(b)) = (self.pop(), self.pop()) {
             self.push(a + b);
+        }
+    }
+
+    fn sub(&mut self) {
+        if let (Some(a), Some(b)) = (self.pop(), self.pop()) {
+            self.push(b - a);
+        }
+    }
+
+    fn mul(&mut self) {
+        if let (Some(a), Some(b)) = (self.pop(), self.pop()) {
+            self.push(a * b);
+        }
+    }
+
+    fn div(&mut self) {
+        if let (Some(a), Some(b)) = (self.pop(), self.pop()) {
+            if a != 0 {
+                self.push(b / a);
+            } else {
+                eprintln!("Error: Division by zero");
+            }
+        }
+    }
+
+    fn drop(&mut self) {
+        self.pop();
+    }
+
+    fn over(&mut self) {
+        if self.stack.len() >= 2 {
+            let a = self.stack[self.stack.len() - 2];
+            self.push(a);
         }
     }
 
