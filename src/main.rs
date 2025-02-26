@@ -50,6 +50,30 @@ impl Forth {
             self.push(b);
         }
     }
+
+    fn eval(&mut self, input: &str) {
+        for token in input.split_whitespace() {
+            if let Ok(number) = token.parse::<i32>() {
+                self.push(number);
+            } else if let Some(word) = self.dictionary.get(token) {
+                match word {
+                    Word::BuiltIn(func) => func(self),
+                    Word::UserDefined(tokens) => {
+                        for t in tokens.clone() {
+                            self.eval(&t);
+                        }
+                    }
+                }
+            } else {
+                eprintln!("Unknown word: {}", token);
+            }
+        }
+    }
+
+    fn define_word(&mut self, name: &str, tokens: Vec<String>) {
+        self.dictionary
+            .insert(name.to_string(), Word::UserDefined(tokens));
+    }
 }
 
 fn main() {
