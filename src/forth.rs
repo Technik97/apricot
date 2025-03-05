@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use std::collections::HashMap;
 
 #[derive(Clone)]
@@ -11,21 +12,69 @@ pub struct Forth {
     dictionary: HashMap<String, Word>,
 }
 
+macro_rules! define_builtins {
+    ($($name:expr => $func:ident),* $(,)?) => {
+        vec![
+            $(($name.to_string(), Word::BuiltIn(|forth| forth.$func()))),*
+        ]
+    };
+}
+
+lazy_static! {
+    static ref BUILTIN_WORDS: HashMap<String, Word> = {
+        let builtins = define_builtins! {
+            "+" => add,
+            "-" => sub,
+            "*" => mul,
+            "/" => div,
+            "dup" => dup,
+            "drop" => drop_word,  // Renamed to `drop_word` to avoid name conflict
+            "swap" => swap,
+            "over" => over,
+        };
+
+        builtins.into_iter().collect()
+    };
+}
+
 impl Forth {
     pub fn new() -> Self {
-        let mut dictionary = HashMap::new();
-        dictionary.insert("+".to_string(), Word::BuiltIn(Forth::add));
-        dictionary.insert("dup".to_string(), Word::BuiltIn(Forth::dup));
-        dictionary.insert("-".to_string(), Word::BuiltIn(Forth::sub));
-        dictionary.insert("*".to_string(), Word::BuiltIn(Forth::mul));
-        dictionary.insert("/".to_string(), Word::BuiltIn(Forth::div));
-        dictionary.insert("drop".to_string(), Word::BuiltIn(Forth::drop));
-        dictionary.insert("over".to_string(), Word::BuiltIn(Forth::over));
-
         Self {
             stack: Vec::new(),
-            dictionary,
+            dictionary: BUILTIN_WORDS.clone(),
         }
+    }
+
+    /// Defines a new user word
+    pub fn define_word(&mut self, name: &str, tokens: Vec<String>) {
+        self.dictionary.insert(name.to_string(), Word::UserDefined(tokens));
+    }
+
+    /// Evaluates input and executes built-in or user-defined words
+    pub fn eval(&mut self, input: &str) {
+        let words: Vec<String> = input.split_whitespace().map(|s| s.to_string()).collect();
+
+        for word in words {
+            if let Some(word_def) = self.dictionary.get(&word).cloned() {
+                match word_def {
+                    Word::BuiltIn(func) => func(self),
+                    Word::UserDefined(tokens) => {
+                        for token in tokens {
+                            self.eval(&token);  // Recursive evaluation
+                        }
+                    }
+                }
+            } else if let Ok(num) = word.parse::<i32>() {
+                self.push(num);
+            } else {
+                eprintln!("Unknown word: {}", word);
+            }
+        }
+    }
+
+    /// Returns the top element of the stack
+    pub fn top(&self) -> Option<i32> {
+        self.stack.last().copied()
     }
 
     pub fn add(&mut self) {
@@ -56,8 +105,15 @@ impl Forth {
         }
     }
 
-    pub fn drop(&mut self) {
+    pub fn drop_word(&mut self) {
         self.pop();
+    }
+
+    pub fn swap(&mut self) {
+        if self.stack.len() >= 2 {
+            let len = self.stack.len();
+            self.stack.swap(len - 1, len - 2);
+        }
     }
 
     pub fn over(&mut self) {
@@ -79,50 +135,5 @@ impl Forth {
         if let Some(&top) = self.stack.last() {
             self.push(top);
         }
-    }
-
-    pub fn swap(&mut self) {
-        if self.stack.len() >= 2 {
-            let a = self.pop().unwrap();
-            let b = self.pop().unwrap();
-            self.push(a);
-            self.push(b);
-        }
-    }
-
-    pub fn eval(&mut self, input: &str) {
-        for token in input.split_whitespace() {
-            self.process_token(token);
-        }
-    }
-
-    pub fn process_token(&mut self, token: &str) {
-        if let Ok(number) = token.parse::<i32>() {
-            self.push(number);
-        } else if let Some(word) = self.dictionary.get(token).cloned() {
-            self.execute_word(word);
-        } else {
-            eprintln!("Unknown word: {}", token);
-        }
-    }
-
-    pub fn execute_word(&mut self, word: Word) {
-        match word {
-            Word::BuiltIn(func) => func(self),
-            Word::UserDefined(tokens) => {
-                for t in tokens.clone() {
-                    self.eval(&t);
-                }
-            }
-        }
-    }
-
-    pub fn define_word(&mut self, name: &str, tokens: Vec<String>) {
-        self.dictionary
-            .insert(name.to_string(), Word::UserDefined(tokens));
-    }
-
-    pub fn top(&self) -> Option<&i32> {
-        self.stack.last()
     }
 }
