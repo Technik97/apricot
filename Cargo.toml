@@ -11,3 +11,4 @@ path = "src/main.rs"
 name = "apricot"
 
 [dependencies]
+lazy_static = "1.5.0"
