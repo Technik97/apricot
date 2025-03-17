@@ -1,6 +1,8 @@
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
+use crate::builtins;
+
 #[derive(Clone)]
 pub enum Word {
     BuiltIn(fn(&mut Forth)),
@@ -8,10 +10,35 @@ pub enum Word {
 }
 
 pub struct Forth {
-    stack: Vec<i32>,
-    dictionary: HashMap<String, Word>,
+    pub stack: Vec<i32>,
+    pub dictionary: HashMap<String, Word>,
 }
 
+/// Trait for built-in operations
+pub trait BuiltinOps {
+    fn add(&mut self);
+    fn sub(&mut self);
+    fn mul(&mut self);
+    fn div(&mut self);
+    fn dup(&mut self);
+    fn drop_word(&mut self);
+    fn swap(&mut self);
+    fn over(&mut self);
+}
+
+/// Implementation of BuiltinOps for Forth
+impl BuiltinOps for Forth {
+    fn add(&mut self) { builtins::add(self); }
+    fn sub(&mut self) { builtins::sub(self); }
+    fn mul(&mut self) { builtins::mul(self); }
+    fn div(&mut self) { builtins::div(self); }
+    fn dup(&mut self) { builtins::dup(self); }
+    fn drop_word(&mut self) { builtins::drop_word(self); }
+    fn swap(&mut self) { builtins::swap(self); }
+    fn over(&mut self) { builtins::over(self); }
+}
+
+/// Macro to define built-in words
 macro_rules! define_builtins {
     ($($name:expr => $func:ident),* $(,)?) => {
         vec![
@@ -28,7 +55,7 @@ lazy_static! {
             "*" => mul,
             "/" => div,
             "dup" => dup,
-            "drop" => drop_word,  // Renamed to `drop_word` to avoid name conflict
+            "drop" => drop_word,
             "swap" => swap,
             "over" => over,
         };
@@ -45,7 +72,7 @@ impl Forth {
         }
     }
 
-    /// Defines a new user word
+    /// Defines a new user-defined word
     pub fn define_word(&mut self, name: &str, tokens: Vec<String>) {
         self.dictionary.insert(name.to_string(), Word::UserDefined(tokens));
     }
@@ -60,7 +87,7 @@ impl Forth {
                     Word::BuiltIn(func) => func(self),
                     Word::UserDefined(tokens) => {
                         for token in tokens {
-                            self.eval(&token);  // Recursive evaluation
+                            self.eval(&token);
                         }
                     }
                 }
@@ -77,63 +104,11 @@ impl Forth {
         self.stack.last().copied()
     }
 
-    pub fn add(&mut self) {
-        if let (Some(a), Some(b)) = (self.pop(), self.pop()) {
-            self.push(a + b);
-        }
-    }
-
-    pub fn sub(&mut self) {
-        if let (Some(a), Some(b)) = (self.pop(), self.pop()) {
-            self.push(b - a);
-        }
-    }
-
-    pub fn mul(&mut self) {
-        if let (Some(a), Some(b)) = (self.pop(), self.pop()) {
-            self.push(a * b);
-        }
-    }
-
-    pub fn div(&mut self) {
-        if let (Some(a), Some(b)) = (self.pop(), self.pop()) {
-            if a != 0 {
-                self.push(b / a);
-            } else {
-                eprintln!("Error: Division by zero");
-            }
-        }
-    }
-
-    pub fn drop_word(&mut self) {
-        self.pop();
-    }
-
-    pub fn swap(&mut self) {
-        if self.stack.len() >= 2 {
-            let len = self.stack.len();
-            self.stack.swap(len - 1, len - 2);
-        }
-    }
-
-    pub fn over(&mut self) {
-        if self.stack.len() >= 2 {
-            let a = self.stack[self.stack.len() - 2];
-            self.push(a);
-        }
-    }
-
     pub fn push(&mut self, value: i32) {
         self.stack.push(value);
     }
 
     pub fn pop(&mut self) -> Option<i32> {
         self.stack.pop()
-    }
-
-    pub fn dup(&mut self) {
-        if let Some(&top) = self.stack.last() {
-            self.push(top);
-        }
     }
 }
