@@ -2,12 +2,7 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 
 use crate::builtins;
-
-#[derive(Clone)]
-pub enum Word {
-    BuiltIn(fn(&mut Forth)),
-    UserDefined(Vec<String>),
-}
+use crate::word::Word;
 
 pub struct Forth {
     pub stack: Vec<i32>,
